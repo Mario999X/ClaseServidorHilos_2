@@ -120,7 +120,7 @@ class GestorClientes(private val cliente: Socket, private val usersDb: UsersDb, 
         //println(token?.getClaim("rol"))
         //println(Usuario.TipoUser.USER.rol)
 
-        if (token?.getClaim("rol").toString().contains(Usuario.TipoUser.USER.rol)) {
+        if (!token?.getClaim("rol").toString().contains(Usuario.TipoUser.ADMIN.rol)) {
             funcionDisponible = false
         }
 
