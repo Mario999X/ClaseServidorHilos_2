@@ -4,6 +4,7 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import models.Alumno
+import models.Usuario
 import models.mensajes.Request
 import models.mensajes.Response
 import monitor.AulaDb
@@ -45,6 +46,8 @@ class GestorClientes(private val cliente: Socket, private val usersDb: UsersDb, 
 
             else -> {}
         }
+
+        cliente.close()
     }
 
     private fun consultarAlumnos() {
@@ -56,46 +59,70 @@ class GestorClientes(private val cliente: Socket, private val usersDb: UsersDb, 
 
     private fun eliminarAlumno(request: Request<Alumno>) {
         log.debug { "Eliminando alumno" }
+        val response: Response<String>
 
-        if (request.content?.let { aulaDb.delete(request.content.id) } == true) {
-            val response = Response("Operacion Realizada", Response.Type.OK)
-            salida.writeUTF(json.encodeToString(response) + "\n")
+        val permisos = comprobarToken(request)
+
+        response = if (!permisos) {
+            log.debug { "No tiene permisos para esta operacion" }
+
+            Response("Operacion NO Realizada, no tiene permisos", Response.Type.ERROR)
         } else {
-            val response = Response("Operacion NO Realizada, alumno no existe", Response.Type.ERROR)
-            salida.writeUTF(json.encodeToString(response) + "\n")
+            if (request.content?.let { aulaDb.delete(request.content.id) } == true) {
+                Response("Operacion Realizada", Response.Type.OK)
+            } else {
+                Response("Operacion NO Realizada, alumno no existe", Response.Type.ERROR)
+            }
         }
+        salida.writeUTF(json.encodeToString(response) + "\n")
     }
 
     private fun modificarAlumnos(request: Request<Alumno>) {
         log.debug { "Procesando alumno" }
+        val permisos = comprobarToken(request)
 
-        request.content?.let { aulaDb.add(it) }
+        if (!permisos) {
+            log.debug { "No tiene permisos para esta operacion" }
 
-        val response = Response("Operacion Realizada", Response.Type.OK)
-        salida.writeUTF(json.encodeToString(response) + "\n")
+            val response = Response("Operacion NO Realizada, no tiene permisos", Response.Type.ERROR)
+            salida.writeUTF(json.encodeToString(response) + "\n")
+        } else {
+            request.content?.let { aulaDb.add(it) }
+
+            val response = Response("Operacion Realizada", Response.Type.OK)
+            salida.writeUTF(json.encodeToString(response) + "\n")
+        }
+
+    }
+
+    private fun comprobarToken(request: Request<Alumno>): Boolean {
+        log.debug { "Comprobando token..." }
+
+        var funcionDisponible = true
+
+        val token = request.token?.let { ManejadorTokens.decodeToken(it) }
+        //println(token?.getClaim("rol"))
+        //println(Usuario.TipoUser.USER.rol)
+
+        if (token?.getClaim("rol").toString().contains(Usuario.TipoUser.USER.rol)) {
+            funcionDisponible = false
+        }
+
+        return funcionDisponible
     }
 
     private fun enviarToken(request: Request<Alumno>) {
         log.debug { "Procesando token..." }
 
-        val responseToken: Response<String> = if (request.type == Request.Type.GET_TOKEN && request.token == null) {
+        val user = usersDb.login(request.content!!.nombre, request.content2!!.nombre)
 
-            val user = usersDb.login(request.content!!.nombre, request.content2!!.nombre)
-
-            if (user == null) {
-
-                println("User not found")
-                Response(null, Response.Type.ERROR)
-            } else {
-
-                val token = user.rol?.let { ManejadorTokens.createToken(it.rol) }
-                Response(token, Response.Type.OK)
-            }
-
+        val responseToken = if (user == null) {
+            println("User not found")
+            Response(null, Response.Type.ERROR)
         } else {
-            request.token?.let { ManejadorTokens.decodeToken(it) }
-            log.debug { "Este cliente ya posee un token y se comprobo" }
-            Response(null, Response.Type.OK)
+
+            val token = ManejadorTokens.createToken(user.rol!!.rol)
+            Response(token, Response.Type.OK)
         }
 
         salida.writeUTF(json.encodeToString(responseToken) + "\n")

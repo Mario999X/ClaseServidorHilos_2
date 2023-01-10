@@ -11,6 +11,6 @@ data class Request<T>(
 
 ) {
     enum class Type {
-        GET_TOKEN, ADD, DELETE, UPDATE, CONSULT, EXIT// User solo podra enviar CONSULT y EXIT, los demas seran denegados.
+        GET_TOKEN, ADD, DELETE, UPDATE, CONSULT// User solo podra enviar CONSULT y EXIT, los demas seran denegados.
     }
 }

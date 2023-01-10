@@ -13,7 +13,7 @@ object ManejadorTokens {
     fun createToken(rol: String): String {
         val jwtToken: String = JWT.create()
             .withIssuer("Login")
-            .withClaim("Rol", rol)
+            .withClaim("rol", rol)
             .withExpiresAt(Date(System.currentTimeMillis() + 100000)) // alrededor de 2 minutos
             .sign(algoritmo)
 
@@ -25,7 +25,6 @@ object ManejadorTokens {
         val verifier = JWT.require(algoritmo)
             //.withIssuer("XX") // Quien lo emite  y solo validamos para este tipo de emisor
             .build()
-        //println(decodedJWT.issuer)
 
         return verifier.verify(jwtToken)
     }
