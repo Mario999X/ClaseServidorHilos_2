@@ -78,6 +78,18 @@ private fun solicitud() {
             request = Request(token, alumno, null, Request.Type.DELETE)
         }
 
+        3 -> {
+            log.debug { "\tIntroduzca el ID del alumno a actualizar: "}
+            val id = readln().toInt()
+            log.debug { "\tIntroduzca el NOMBRE nuevo del alumno: "}
+            val nombre = readln()
+            log.debug { "\tIntroduzca la NOTA nueva del alumno: "}
+            val nota = readln().toInt()
+
+            val alumno = Alumno(nombre, nota, id)
+            request = Request(token, alumno, null, Request.Type.UPDATE)
+        }
+
         4 -> {
             log.debug { "\tConsultando Alumnos" }
 
@@ -86,7 +98,6 @@ private fun solicitud() {
 
         5 -> {
             log.debug { "\tCerrando aplicacion" }
-
         }
     }
     if (opcion == 5) {

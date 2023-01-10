@@ -25,7 +25,8 @@ class GestorClientes(private val cliente: Socket, private val usersDb: UsersDb, 
     private val entrada = DataInputStream(cliente.getInputStream())
 
     override fun run() {
-        val request = lecturaRequest() // Leemos el request
+        val request = lecturaRequest() // Leemos el request y actuamos segun el tipo que sea
+        val permisos = comprobarTipoUser(request) // Comprobamos el tipo se usuario con el token
 
         when (request.type) {
             Request.Type.GET_TOKEN -> {
@@ -33,18 +34,21 @@ class GestorClientes(private val cliente: Socket, private val usersDb: UsersDb, 
             }
 
             Request.Type.ADD -> {
-                modificarAlumnos(request)
+                agregarAlumno(request, permisos)
+            }
+
+            Request.Type.UPDATE -> {
+                modificarAlumno(request, permisos)
             }
 
             Request.Type.DELETE -> {
-                eliminarAlumno(request)
+                eliminarAlumno(request, permisos)
             }
 
             Request.Type.CONSULT -> {
-                consultarAlumnos()
+                consultarAlumnos() // El unico que no necesita que comprobemos los permisos es el de consulta
             }
 
-            else -> {}
         }
 
         cliente.close()
@@ -57,13 +61,10 @@ class GestorClientes(private val cliente: Socket, private val usersDb: UsersDb, 
         salida.writeUTF(json.encodeToString(response) + "\n")
     }
 
-    private fun eliminarAlumno(request: Request<Alumno>) {
+    private fun eliminarAlumno(request: Request<Alumno>, permisos: Boolean) {
         log.debug { "Eliminando alumno" }
-        val response: Response<String>
 
-        val permisos = comprobarToken(request)
-
-        response = if (!permisos) {
+        val response = if (!permisos) {
             log.debug { "No tiene permisos para esta operacion" }
 
             Response("Operacion NO Realizada, no tiene permisos", Response.Type.ERROR)
@@ -77,9 +78,8 @@ class GestorClientes(private val cliente: Socket, private val usersDb: UsersDb, 
         salida.writeUTF(json.encodeToString(response) + "\n")
     }
 
-    private fun modificarAlumnos(request: Request<Alumno>) {
-        log.debug { "Procesando alumno" }
-        val permisos = comprobarToken(request)
+    private fun modificarAlumno(request: Request<Alumno>, permisos: Boolean) {
+        log.debug { "Actualizando alumno" }
 
         if (!permisos) {
             log.debug { "No tiene permisos para esta operacion" }
@@ -87,15 +87,31 @@ class GestorClientes(private val cliente: Socket, private val usersDb: UsersDb, 
             val response = Response("Operacion NO Realizada, no tiene permisos", Response.Type.ERROR)
             salida.writeUTF(json.encodeToString(response) + "\n")
         } else {
-            request.content?.let { aulaDb.add(it) }
+            val existe = request.content?.id.let { aulaDb.update(request.content!!.id, request.content) }
+            val response = if (!existe) {
+                Response("Alumno no existe", Response.Type.OK)
+            } else Response("Operacion Realizada", Response.Type.OK)
 
-            val response = Response("Operacion Realizada", Response.Type.OK)
             salida.writeUTF(json.encodeToString(response) + "\n")
         }
-
     }
 
-    private fun comprobarToken(request: Request<Alumno>): Boolean {
+    private fun agregarAlumno(request: Request<Alumno>, permisos: Boolean) {
+        log.debug { "Procesando alumno" }
+
+        val response = if (!permisos) {
+            log.debug { "No tiene permisos para esta operacion" }
+
+            Response("Operacion NO Realizada, no tiene permisos", Response.Type.ERROR)
+        } else {
+            request.content?.let { aulaDb.add(it) }
+
+            Response("Operacion Realizada", Response.Type.OK)
+        }
+        salida.writeUTF(json.encodeToString(response) + "\n")
+    }
+
+    private fun comprobarTipoUser(request: Request<Alumno>): Boolean {
         log.debug { "Comprobando token..." }
 
         var funcionDisponible = true
@@ -117,6 +133,7 @@ class GestorClientes(private val cliente: Socket, private val usersDb: UsersDb, 
         val user = usersDb.login(request.content!!.nombre, request.content2!!.nombre)
 
         val responseToken = if (user == null) {
+
             println("User not found")
             Response(null, Response.Type.ERROR)
         } else {
