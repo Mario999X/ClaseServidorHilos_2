@@ -79,11 +79,11 @@ private fun solicitud() {
         }
 
         3 -> {
-            log.debug { "\tIntroduzca el ID del alumno a actualizar: "}
+            log.debug { "\tIntroduzca el ID del alumno a actualizar: " }
             val id = readln().toInt()
-            log.debug { "\tIntroduzca el NOMBRE nuevo del alumno: "}
+            log.debug { "\tIntroduzca el NOMBRE nuevo del alumno: " }
             val nombre = readln()
-            log.debug { "\tIntroduzca la NOTA nueva del alumno: "}
+            log.debug { "\tIntroduzca la NOTA nueva del alumno: " }
             val nota = readln().toInt()
 
             val alumno = Alumno(nombre, nota, id)
@@ -119,6 +119,8 @@ private fun solicitud() {
 
         val response = responseSolicitud.content
         log.debug { "Respuesta del servidor: $response" }
+
+        if (responseSolicitud.type == Response.Type.TOKEN_EXPIRED) token = null
     }
 
 }
@@ -145,7 +147,7 @@ private fun solicitarToken(): String? {
     val receiveResponse = DataInputStream(servidor.getInputStream())
 
     // cutre, yep.
-    request = Request(null, Alumno(data1), Alumno(data2), Request.Type.GET_TOKEN)
+    request = Request(null, Alumno(data1), data2, Request.Type.GET_TOKEN)
     sendRequest.writeUTF(json.encodeToString(request) + "\n")
     log.debug { "Se envio $request" }
 
